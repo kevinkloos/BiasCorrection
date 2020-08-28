@@ -322,45 +322,12 @@ header <- dashboardHeader(title = "Bias Correction Dashboard")
 sidebar <- dashboardSidebar(
   sidebarMenu(
     menuItem("Descriptive One Point", tabName = "descriptives1p", icon = icon("dashboard")),
-    menuItem("Descriptive Curve", tabName = "descriptives", icon = icon("chart-line")),
-    menuItem("Prediction", tabName = "prediction", icon = icon("lightbulb"))
+    menuItem("Descriptive Curve", tabName = "descriptives", icon = icon("chart-line"))
   )
 )
 
 body <- dashboardBody(
   tabItems(
-    tabItem(tabName = "prediction",
-        fluidRow(
-          box(numericInput(inputId = "n00",
-                           label = "Number of objects correctly classfied in class 0:",
-                           value = 10),
-              numericInput(inputId = "n01",
-                           label = "Number of objects incorrectly classfied in class 0:",
-                           value = 10),
-              width = 4),
-          box(numericInput(inputId = "n11",
-                           label = "Number of objects correctly classfied in class 1:",
-                           value = 10),
-              numericInput(inputId = "n10",
-                           label = "Number of objects incorrectly classfied in class 1:",
-                           value = 10),
-              width = 4),
-          box(numericInput(inputId = "alpha.hat.star",
-                           label = "Naive estimation of percentage class 1 (%)",
-                           value = 50),
-              width = 4)),
-
-        fluidRow(
-          infoBoxOutput("sensitivityBox"),
-          infoBoxOutput("specificityBox")
-        ),
-
-        fluidRow(
-          infoBoxOutput("naiveEstimate"),
-          infoBoxOutput("observedEstimate"),
-          infoBoxOutput("correctedEstimate")
-        )
-    ),
     tabItem(tabName = "descriptives1p",
         fluidRow(
           box(numericInput(inputId = "p00",
