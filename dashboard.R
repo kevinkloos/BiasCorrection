@@ -10,7 +10,7 @@ library(tidyverse)
 #################################### Functions ##########################################
 
 prop.CI <- function(p, a, n){
-  z <- qnorm(a/2) 
+  z <- qnorm(a/2)
   lb <- p + (z*sqrt(p*(1-p)/n) + 1/(2*n))
   ub <- p - (z*sqrt(p*(1-p)/n) + 1/(2*n))
   return(c(lb,ub))
@@ -21,7 +21,7 @@ estimate.cali <- function(n00,n10,n01,n11,a.hat.star){
   p11 <- n11 / (n10 + n11)
   n <- sum(n00,n10,n01,n11)
   val.dat <- matrix(c(n00,n10,n01,n11), nrow = 2)
-  
+
   alphas.hat <- c(1 - a.hat.star ,a.hat.star)
   p.est.cali <- validation.to.calibration(val.dat)
   est <- p.est.cali %*% alphas.hat
@@ -32,16 +32,16 @@ rmse.thr.prob <- function(n, p00, p11, a1){
   val1 <- (1-a1)*p00*(1-p00)*(1+a1/(n*(1-a1)))
   val2 <- a1*p11*(1-p11)*(1 + (1-a1)/(n*a1))
   val3 <- n*(p00+p11-1)^2
-  
+
   tot.var <- (val1 + val2)/val3
-  
+
   bias.prob <- function(n,p00,p11,a){
     p1 <- (a*(p00+p11-1) - (p00-1))/(n*(p00+p11-1)^3) * (p00*(1-p00)/(1-a) + p11*(1-p11)/a)
     p2 <- (p00-1)*p11/(n*(p00+p11-1)^3) * ((1-p11)/a + p00/(1-a))
     return(p1+p2)
   }
   tot.bias <- bias.prob(n,p00,p11,a1)
-  
+
   return(sqrt(tot.var + tot.bias^2))
 }
 
@@ -62,39 +62,30 @@ rmse.thr.cali <- function(n, p00, p11, a1){
   a.hat.star <- p11*a1 + (1-p00)*(1-a1)
   q00 <- ((1-a1)*p00) / ((1-a1)*p00 + a1*(1-p11))
   q11 <- (a1*p11) / (a1*p11 + (1-a1)*(1-p00))
-  
+
   val1 <- (a.hat.star/n + (1 - a.hat.star)/n^2) * (q11 - q11^2)
   val2 <- (a.hat.star/n^2 + (1 - a.hat.star)/n) * (q00 - q00^2)
-  
+
   return(sqrt(val1 + val2))
 }
 
 rmse.thr.esbi <- function(n, p00, p11, a1){
   e.a.hat.star <- p11*a1 + (1-p00)*(1-a1)
   bias.esbi <- a1 - (e.a.hat.star * (3-p11-p00) - (1-p00))
-  
+
   v.p00 <- p00*(1-p00) / (n * (1 - a1)) * (1 + a1/(n*(1-a1)))
   v.p11 <- p11*(1-p11) / (n * a1) * (1 + (1- a1) /(n*a1))
-  
+
   var.esbi <- v.p00 * (e.a.hat.star - 1)^2 + v.p11 * e.a.hat.star^2
-  
+
   mse.esbi <- bias.esbi^2 + var.esbi
   return(sqrt(mse.esbi))
 }
 
-rmse.thr.esbi2 <- function(n, p00, p11, a1){
-  v.p00 <- p00*(1-p00) / (n * (1 - a1)) * (1 + a1/(n*(1-a1)))
-  v.p11 <- p11*(1-p11) / (n * a1) * (1 + (1- a1) /(n*a1))
-  v.av  <- a1 * (1-a1) / n
-  
-  var.esbi <- v.p00 * (a1 - 1)^2 + v.p11 * a1^2 + v.av * (p00+p11-2)^2
-  
-  return(sqrt(var.esbi))
-}
 predictions.2classes <- function(runs, n, N, p00, p11, alpha1){
   p.real <- matrix(c(p00, 1 - p11, 1 - p00, p11), nrow = 2)
   alphas <- c(1 - alpha1,alpha1)
-  
+
   # Get "real data set"
   pop.dat <- populationdata.nclasses(runs, p.real, alphas, N)
   # Take sample to validate
@@ -105,12 +96,12 @@ predictions.2classes <- function(runs, n, N, p00, p11, alpha1){
   # Compute Inversed Contigency Matrix and calibration matrix
   p.est.prob <- validation.to.probability(val.dat)
   p.est.cali <- validation.to.calibration(val.dat)
-  
-  
+
+
   # Probabilities as a vector
   p00.hat <- p.est.prob[1,1,]
   p11.hat <- p.est.prob[2,2,]
-  
+
   c01.hat <- p.est.cali[2,1,]
   c11.hat <- p.est.cali[2,2,]
   #Compute estimations per method and calculate RMSE
@@ -118,16 +109,16 @@ predictions.2classes <- function(runs, n, N, p00, p11, alpha1){
   est.cali <- c01.hat * (1-alphas.hat) + c11.hat * alphas.hat
   est.esbi <- alphas.hat - (p11.hat - 1)*alphas.hat - (1 - p00.hat)*(1-alphas.hat)
   est.esbi2 <- alphas.hat - (p11.hat - 1)*alphas.v - (1 - p00.hat)*(1-alphas.v)
-  
-  
+
+
   dfr <- data.frame("C.Validation.Data" = alphas.v,
                     "B.Contingency.Matrix" = est.prob,
                     "A.Calibration.Matrix"= est.cali,
                     "F.Naive.Estimation" = alphas.hat,
                     "E.Bias.Correction.Biased" = est.esbi,
                     "D.Bias.Correction.Unbiased" = est.esbi2)
-  dfr <- pivot_longer(dfr, 
-                      cols = c("C.Validation.Data", "B.Contingency.Matrix", 
+  dfr <- pivot_longer(dfr,
+                      cols = c("C.Validation.Data", "B.Contingency.Matrix",
                                "A.Calibration.Matrix", "E.Bias.Correction.Biased",
                                "F.Naive.Estimation", "D.Bias.Correction.Unbiased"),
                       names_to = "Method",
@@ -143,23 +134,23 @@ expected.populationdata.nclasses <- function(p.mat, a.mat, N){
   dims <- nrow(p.mat)
   # Obtain probability per cell
   val.dat <- p.mat * rep(a.mat, times = dims) * N
-  
+
   # Obtain all integers
   val.dat.integers <- floor(val.dat)
   # And their decimals
   val.dat.decimals <- val.dat %% 1
-  
+
   # Check how many numbers are left to fill in
   rest.numbers <- N - sum(val.dat.integers)
-  
+
   # And assign them to the ones with the highest decimals
   highest.indices <- order(val.dat.decimals, decreasing = T)[seq_len(rest.numbers)]
   val.dat.integers[highest.indices] =  val.dat.integers[highest.indices] + 1
-  
+
   ## Nice output
   rownames(val.dat.integers) <- paste0("True:", 0:(dims-1))
   colnames(val.dat.integers) <- paste0("Obs:", 0:(dims-1))
-  
+
   ## Output
   return(val.dat.integers)
 }
@@ -167,23 +158,23 @@ expected.populationdata.nclasses <- function(p.mat, a.mat, N){
 populationdata.nclasses <- function(runs, p.mat, a.mat, N){
   pop.dat <- expected.populationdata.nclasses(p.mat,a.mat,N)
   n <- nrow(p.mat)
-  
+
   Sampler <- function(n){
     samps <- lapply(1:n, function(x) {
       sample(1:n, size = sum(pop.dat[x,]), prob = p.mat[x,], replace = T)
     })
     out <- lapply(samps, tabulate, nbins = n) %>% unlist() %>% matrix(nrow = n, byrow = T)
   }
-  
+
   out <- replicate(runs, Sampler(n))
 
-  
+
   return(out)
 }
 
 
 sample.from.populationdata <- function(val.dat, n){
-  #sample from a dataset (without replacement)  
+  #sample from a dataset (without replacement)
   Sampler <- function(val.dat, n){
     vec <- as.vector(val.dat)
     len <- length(vec)
@@ -192,7 +183,7 @@ sample.from.populationdata <- function(val.dat, n){
     counts <- matrix(counts, nrow = sqrt(len))
     return(counts)
   }
-  
+
   #repeat a certain amount of times for simulation purposes
   arr <- apply(val.dat, 3, function(x) {Sampler(x, n)})
   arr <- array(arr, dim=dim(val.dat))
@@ -239,9 +230,9 @@ data.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
   p00 <- seq(p00_left, p00_right, length.out = steps)
   p11 <- seq(p11_left, p11_right, length.out = steps)
   p.grid <- expand.grid(p00, p11)
-  
+
   data.prob <- data.cali <- data.vali <- data.naiv <- data.esbi <- data.esbi2 <- NULL
-  
+
   if("probability" %in% methods){
     data.prob <- mapply(rmse.thr.prob, n, p.grid[,1], p.grid[,2], alpha)
     data.prob <- matrix(data.prob, nrow = length(p00), byrow = T)
@@ -281,13 +272,13 @@ data.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
 }
 
 dash.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha, methods, steps){
-  
+
   p00 <- seq(p00_left, p00_right, length.out = steps)
   p11 <- seq(p11_left, p11_right, length.out = steps)
   p.grid <- expand.grid(p00, p11)
-  
+
   dat <- data.rmseplot(p00_left, p00_right, p11_left, p11_right, n, N, alpha, methods, steps)
-  
+
   color1 <- rep(0, length(p00) * length(p11))
   dim(color1) <- dim(dat$data.prob)
   color2 <- color1 + 1/5
@@ -295,9 +286,9 @@ dash.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
   color4 <- color1 + 3/5
   color5 <- color1 + 4/5
   color6 <- color1 + 1
-  
+
   # create plot
-  p <- plot_ly(x = ~p00, y = ~p11, showscale = F) 
+  p <- plot_ly(x = ~p00, y = ~p11, showscale = F)
   if ("probability" %in% methods){
     p <- p %>% add_surface(z = ~dat$data.prob, surfacecolor = color1,
                            cauto = F, cmax = 1, cmin = 0,
@@ -335,7 +326,7 @@ dash.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
       yaxis = list(title = "p11", showgrid = FALSE),
       zaxis = list(title = "RMSE", showgrid = FALSE)
     ))
-  
+
   return(p)
 }
 
@@ -371,12 +362,12 @@ body <- dashboardBody(
                            label = "Naive estimation of percentage class 1 (%)",
                            value = 50),
               width = 4)),
-        
+
         fluidRow(
           infoBoxOutput("sensitivityBox"),
           infoBoxOutput("specificityBox")
         ),
-        
+
         fluidRow(
           infoBoxOutput("naiveEstimate"),
           infoBoxOutput("observedEstimate"),
@@ -474,23 +465,23 @@ ui <- dashboardPage(
 )
 
 
-server <- function(input, output) { 
+server <- function(input, output) {
   output$sensitivityBox <- renderInfoBox({
-    infoBox("Accuracy in predicting Class 0 (95% CI)", 
-            paste0(round(100 * input$n00 / (input$n00 + input$n01),3), 
+    infoBox("Accuracy in predicting Class 0 (95% CI)",
+            paste0(round(100 * input$n00 / (input$n00 + input$n01),3),
                    "% (",
                    100 * round(prop.CI(input$n00 / (input$n00 + input$n01), 0.05, (input$n00 + input$n01))[1],5),
                    "% - ",
                    100 * round(prop.CI(input$n00 / (input$n00 + input$n01), 0.05, (input$n00 + input$n01))[2],5),
                    "%)"),
             icon = icon("dice", lib = "font-awesome"),
-            color = "blue", 
+            color = "blue",
             width = 3,
             fill = T)
   })
   output$specificityBox <- renderInfoBox({
-    infoBox("Accuracy in predicting Class 1 (95% CI)", 
-            paste0(round(100 * input$n11 / (input$n10 + input$n11),3), 
+    infoBox("Accuracy in predicting Class 1 (95% CI)",
+            paste0(round(100 * input$n11 / (input$n10 + input$n11),3),
                    "% (",
                    100 * round(prop.CI(input$n11 / (input$n10 + input$n11), 0.05, (input$n10 + input$n11))[1],5),
                    "% - ",
@@ -502,20 +493,20 @@ server <- function(input, output) {
             fill = T)
   })
   output$naiveEstimate <- renderInfoBox({
-    infoBox("Naive estimate of proportion class 1", 
+    infoBox("Naive estimate of proportion class 1",
             paste0(100 * round(sum(input$n01, input$n11)/sum(input$n01, input$n11, input$n00, input$n10), 5),
                    "%"),
             color = "yellow")
   })
   output$observedEstimate <- renderInfoBox({
-    infoBox("Observed estimate of proportion class 1 in validation set", 
+    infoBox("Observed estimate of proportion class 1 in validation set",
             paste0(100 * round(sum(input$n10, input$n11)/sum(input$n01, input$n11, input$n00, input$n10), 5),
                    "%"),
             color = "green")
   })
   output$correctedEstimate <- renderInfoBox({
-    infoBox("Corrected estimate of proportion class 1", 
-            paste0(100 * round(estimate.cali(input$n00, input$n10, input$n01, 
+    infoBox("Corrected estimate of proportion class 1",
+            paste0(100 * round(estimate.cali(input$n00, input$n10, input$n01,
                                              input$n11, input$alpha.hat.star ),5),
                    "%"),
             color = "red")
@@ -556,10 +547,10 @@ server <- function(input, output) {
             color = "purple",
             icon = icon("laptop-code"))
   })
-  
+
   output$boxplot <- renderPlot({
     d <- predictions.2classes(input$runs, input$n, input$N, input$p00, input$p11, input$alpha)
-    p <- ggplot(d) + 
+    p <- ggplot(d) +
          geom_boxplot(aes(x = Value , y = Method, fill = Method)) +
          scale_fill_manual(values = c("purple", "lightblue", "green", "orange", "red", "yellow")) +
          theme(axis.title.y=element_blank(),
@@ -576,7 +567,7 @@ server <- function(input, output) {
     p00 <- seq(dat()$p00[1], dat()$p00[2], length.out = dat()$steps)
     p11 <- seq(dat()$p11[1], dat()$p11[2], length.out = dat()$steps)
     p.grid <- expand.grid(p00, p11)
-    
+
     color1 <- rep(0, length(p00) * length(p11))
     dim(color1) <- c(length(p00), length(p11))
     color2 <- color1 + 1/5
@@ -585,7 +576,7 @@ server <- function(input, output) {
     color5 <- color1 + 4/5
     color6 <- color1 + 1
     # create plot
-    p <- plot_ly(x = ~p00, y = ~p11, showscale = F) 
+    p <- plot_ly(x = ~p00, y = ~p11, showscale = F)
     if (!is.null(dat()$data.prob)){
       p <- p %>% add_surface(z = ~dat()$data.prob, surfacecolor = color1,
                              cauto = F, cmax = 1, cmin = 0,
@@ -623,7 +614,7 @@ server <- function(input, output) {
         yaxis = list(title = "p11", showgrid = F),
         zaxis = list(title = "RMSE", showgrid = F)
       ))
-    
+
     p
   })
   output$mini <- renderPlot({
@@ -636,9 +627,9 @@ server <- function(input, output) {
     dfr <- data.frame(p00 = rep(p00.seq, each = length(p11.seq)),
                       p11 = rep(p11.seq, times = length(p00.seq)),
                       minimum.rmse = factor(min, labels = fac, levels = 1:length(fac)))
-    ggplot(dfr, aes(x = p00, y = p11, fill = minimum.rmse)) + 
+    ggplot(dfr, aes(x = p00, y = p11, fill = minimum.rmse)) +
       geom_raster() +
-      ggtitle(paste("Method with lowest RMSE for alpha =", 
+      ggtitle(paste("Method with lowest RMSE for alpha =",
                     dat()$alpha, "and n =", dat()$n, sep = " "))
   })
 }
