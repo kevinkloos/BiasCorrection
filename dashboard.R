@@ -108,19 +108,17 @@ predictions.2classes <- function(runs, n, N, p00, p11, alpha1){
   est.prob <- alphas.hat/(p00.hat+p11.hat-1) + (p00.hat-1)/(p00.hat+p11.hat-1)
   est.cali <- c01.hat * (1-alphas.hat) + c11.hat * alphas.hat
   est.esbi <- alphas.hat - (p11.hat - 1)*alphas.hat - (1 - p00.hat)*(1-alphas.hat)
-  est.esbi2 <- alphas.hat - (p11.hat - 1)*alphas.v - (1 - p00.hat)*(1-alphas.v)
 
 
   dfr <- data.frame("C.Validation.Data" = alphas.v,
                     "B.Contingency.Matrix" = est.prob,
                     "A.Calibration.Matrix"= est.cali,
-                    "F.Naive.Estimation" = alphas.hat,
-                    "E.Bias.Correction.Biased" = est.esbi,
-                    "D.Bias.Correction.Unbiased" = est.esbi2)
+                    "E.Naive.Estimation" = alphas.hat,
+                    "D.Bias.Correction" = est.esbi)
   dfr <- pivot_longer(dfr,
                       cols = c("C.Validation.Data", "B.Contingency.Matrix",
-                               "A.Calibration.Matrix", "E.Bias.Correction.Biased",
-                               "F.Naive.Estimation", "D.Bias.Correction.Unbiased"),
+                               "A.Calibration.Matrix", "D.Bias.Correction",
+                               "E.Naive.Estimation"),
                       names_to = "Method",
                       values_to = "Value")
   return(dfr)
@@ -252,13 +250,8 @@ data.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
     data.esbi <- mapply(rmse.thr.esbi, n, p.grid[,1], p.grid[,2], alpha)
     data.esbi <- matrix(data.esbi, nrow = length(p00), byrow = T)
   }
-  if("estbias2" %in% methods){
-    data.esbi2 <- mapply(rmse.thr.esbi2, n, p.grid[,1], p.grid[,2], alpha)
-    data.esbi2 <- matrix(data.esbi2, nrow = length(p00), byrow = T)
-  }
   return(list(data.naiv = data.naiv,
               data.esbi = data.esbi,
-              data.esbi2 = data.esbi2,
               data.vali = data.vali,
               data.prob = data.prob,
               data.cali = data.cali,
@@ -281,11 +274,10 @@ dash.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
 
   color1 <- rep(0, length(p00) * length(p11))
   dim(color1) <- dim(dat$data.prob)
-  color2 <- color1 + 1/5
-  color3 <- color1 + 2/5
-  color4 <- color1 + 3/5
-  color5 <- color1 + 4/5
-  color6 <- color1 + 1
+  color2 <- color1 + 1/4
+  color3 <- color1 + 2/4
+  color4 <- color1 + 3/4
+  color5 <- color1 + 1
 
   # create plot
   p <- plot_ly(x = ~p00, y = ~p11, showscale = F)
@@ -313,11 +305,6 @@ dash.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
     p <- p %>% add_surface(z ~ dat$data.esbi, surfacecolor = color5,
                            cauto = F, cmax = 1, cmin = 0,
                            showscale = F, name = "Estimated Bias: Biased")
-  }
-  if("estbias2" %in% methods){
-    p <- p %>% add_surface(z ~ dat$data.esbi2, surfacecolor = color6,
-                           cauto = F, cmax = 1, cmin = 0,
-                           showscale = F, name = "Estimated Bias: Unbiased")
   }
   p <- p %>% layout(
     title = paste("RMSE with alpha = ", alpha, ", n = ", n ,sep = ""),
@@ -398,9 +385,8 @@ body <- dashboardBody(
                            value = 10),
               width = 4)),
           fluidRow(
-            valueBoxOutput("naiveMSE", width = 4),
-            valueBoxOutput("estbiasMSE", width = 4),
-            valueBoxOutput("estbias2MSE", width = 4)),
+            valueBoxOutput("naiveMSE", width = 6),
+            valueBoxOutput("estbiasMSE", width = 6)),
           fluidRow(
             valueBoxOutput("validationMSE", width = 4),
             valueBoxOutput("probabilityMSE", width = 4),
@@ -433,14 +419,12 @@ body <- dashboardBody(
           box(checkboxGroupInput(inputId = "methods",
                              label = "Which methods are shown in the plot?",
                              choiceNames = list("Naive Method",
-                                                "Estimated Bias Method: Biased",
-                                                "Estimated Bias Method: Unbiased",
+                                                "Estimated Bias Method",
                                                 "Validation Data",
                                                 "Inversed Contigency Matrix",
                                                 "Calibration Matrix"),
                              choiceValues = list("naive",
                                                  "estbias",
-                                                 "estbias2",
                                                  "validation",
                                                  "probability",
                                                  "calibration"),
@@ -480,6 +464,7 @@ server <- function(input, output) {
             fill = T)
   })
   output$specificityBox <- renderInfoBox({
+    #Hoe ver afgerond?
     infoBox("Accuracy in predicting Class 1 (95% CI)",
             paste0(round(100 * input$n11 / (input$n10 + input$n11),3),
                    "% (",
@@ -523,12 +508,6 @@ server <- function(input, output) {
              color = "red",
              icon = icon("laptop-code"))
   })
-  output$estbias2MSE <- renderValueBox({
-    valueBox(subtitle = "RMSE with Estimated Bias Correction: Unbiased",
-             value = rmse.thr.esbi2(input$n, input$p00 , input$p11 , input$alpha) %>% signif(digits = 4),
-             color = "orange",
-             icon = icon("laptop-code"))
-  })
   output$validationMSE <- renderValueBox({
     valueBox(subtitle = "RMSE with Validation Data",
             value = rmse.thr.vali(input$n, input$alpha ) %>% signif(digits = 4),
@@ -552,7 +531,7 @@ server <- function(input, output) {
     d <- predictions.2classes(input$runs, input$n, input$N, input$p00, input$p11, input$alpha)
     p <- ggplot(d) +
          geom_boxplot(aes(x = Value , y = Method, fill = Method)) +
-         scale_fill_manual(values = c("purple", "lightblue", "green", "orange", "red", "yellow")) +
+         scale_fill_manual(values = c("purple", "lightblue", "green", "red", "yellow")) +
          theme(axis.title.y=element_blank(),
                axis.text.y=element_blank(),
                axis.ticks.y=element_blank()) +
@@ -570,11 +549,10 @@ server <- function(input, output) {
 
     color1 <- rep(0, length(p00) * length(p11))
     dim(color1) <- c(length(p00), length(p11))
-    color2 <- color1 + 1/5
-    color3 <- color1 + 2/5
-    color4 <- color1 + 3/5
-    color5 <- color1 + 4/5
-    color6 <- color1 + 1
+    color2 <- color1 + 1/4
+    color3 <- color1 + 2/4
+    color4 <- color1 + 3/4
+    color5 <- color1 + 1
     # create plot
     p <- plot_ly(x = ~p00, y = ~p11, showscale = F)
     if (!is.null(dat()$data.prob)){
@@ -597,15 +575,10 @@ server <- function(input, output) {
                              cauto = F, cmax = 1, cmin = 0,
                              showscale = F, name = "Naive Estimation")
     }
-    if (!is.null(dat()$data.esbi)){
-      p <- p %>% add_surface(z = ~dat()$data.esbi, surfacecolor = color5,
-                             cauto = F, cmax = 1, cmin = 0,
-                             showscale = F, name = "Estimated Bias: Unbiased")
-    }
     if (!is.null(dat()$data.esbi2)){
       p <- p %>% add_surface(z = ~dat()$data.esbi2, surfacecolor = color6,
                              cauto = F, cmax = 1, cmin = 0,
-                             showscale = F, name = "Estimated Bias: Biased")
+                             showscale = F, name = "Estimated Bias")
     }
     p <- p %>% layout(
       title = paste("RMSE with alpha = ", dat()$alpha, ", n = ", dat()$n ,sep = ""),
@@ -618,9 +591,9 @@ server <- function(input, output) {
     p
   })
   output$mini <- renderPlot({
-    meth <- c("naive", "estbias", "estbias2", "validation", "contingency", "calibration")
+    meth <- c("naive", "estbias", "validation", "contingency", "calibration")
     fac <- meth[which(meth %in% dat()$methods)]
-    vals <- abind(dat()[1:6], along = 3)
+    vals <- abind(dat()[1:5], along = 3)
     min <- apply(vals, c(1,2), which.min)
     p00.seq <- seq(dat()$p00[1],dat()$p00[2], length.out = dat()$steps)
     p11.seq <- seq(dat()$p11[1],dat()$p11[2], length.out = dat()$steps)
