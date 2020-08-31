@@ -336,21 +336,25 @@ body <- dashboardBody(
               numericInput(inputId = "p11",
                            label = "Probability of objects in class 1 correctly classfied (p11):",
                            value = 0.90),
-              width = 4),
+              width = 4,
+              height = "15em"),
           box(numericInput(inputId = "n",
                            label = "Sample size of the validation set (n):",
                            value = 300),
               numericInput(inputId = "N",
                            label = "Population size (N):",
                            value = 300000),
-              width = 4),
+              width = 4,
+              height = "15em"),
           box(numericInput(inputId = "alpha",
                            label = "True proportion of objects in class 1 (alpha)",
                            value = 0.85),
               numericInput(inputId = "runs",
                            label = "Amount of runs in simulation",
                            value = 10),
-              width = 4)),
+              actionButton("box", "Update Boxplot"),
+              width = 4,
+              height = "15em")),
           fluidRow(
             valueBoxOutput("naiveMSE", width = 6),
             valueBoxOutput("estbiasMSE", width = 6)),
@@ -493,10 +497,10 @@ server <- function(input, output) {
             color = "purple",
             icon = icon("laptop-code"))
   })
-
+  boxdat <- eventReactive(input$box, {
+    predictions.2classes(input$runs, input$n, input$N, input$p00, input$p11, input$alpha)})
   output$boxplot <- renderPlot({
-    d <- predictions.2classes(input$runs, input$n, input$N, input$p00, input$p11, input$alpha)
-    p <- ggplot(d) +
+    p <- ggplot(boxdat()) +
          geom_boxplot(aes(x = Value , y = Method, fill = Method)) +
          scale_fill_manual(values = c("purple", "lightblue", "green", "red", "yellow")) +
          theme(axis.title.y=element_blank(),
