@@ -110,15 +110,15 @@ predictions.2classes <- function(runs, n, N, p00, p11, alpha1){
   est.esbi <- alphas.hat - (p11.hat - 1)*alphas.hat - (1 - p00.hat)*(1-alphas.hat)
 
 
-  dfr <- data.frame("C.Validation.Data" = alphas.v,
-                    "B.Contingency.Matrix" = est.prob,
-                    "A.Calibration.Matrix"= est.cali,
-                    "E.Naive.Estimation" = alphas.hat,
-                    "D.Bias.Correction" = est.esbi)
+  dfr <- data.frame("A.Baseline" = alphas.v,
+                    "D.Misclassification.Probabilities" = est.prob,
+                    "E.Calibration.Probabilities"= est.cali,
+                    "C.Substracting.Bias" = est.esbi,
+                    "B.Classify.And.Count" = alphas.hat)
   dfr <- pivot_longer(dfr,
-                      cols = c("C.Validation.Data", "B.Contingency.Matrix",
-                               "A.Calibration.Matrix", "D.Bias.Correction",
-                               "E.Naive.Estimation"),
+                      cols = c("A.Baseline", "D.Misclassification.Probabilities",
+                               "E.Calibration.Probabilities", "B.Classify.And.Count",
+                               "C.Substracting.Bias"),
                       names_to = "Method",
                       values_to = "Value")
   return(dfr)
@@ -284,27 +284,27 @@ dash.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
   if ("probability" %in% methods){
     p <- p %>% add_surface(z = ~dat$data.prob, surfacecolor = color1,
                            cauto = F, cmax = 1, cmin = 0,
-                           showscale = F, name = "Inversed Contigency Matrix")
+                           showscale = F, name = "Misclassification Probabilities")
   }
   if("validation" %in% methods){
     p <- p %>% add_surface(z = ~dat$data.vali, surfacecolor = color2,
                            cauto = F, cmax = 1, cmin = 0,
-                           showscale = F, name = "Validation Data")
+                           showscale = F, name = "Baseline Estimator")
   }
   if("calibration" %in% methods){
     p <- p %>% add_surface(z = ~dat$data.cali, surfacecolor = color3,
                            cauto = F, cmax = 1, cmin = 0,
-                           showscale = F, name = "Calibration Matrix")
+                           showscale = F, name = "Calibration Probabilities")
   }
   if("naive" %in% methods){
     p <- p %>% add_surface(z ~ dat$data.naiv, surfacecolor = color4,
                            cauto = F, cmax = 1, cmin = 0,
-                           showscale = F, name = "Naive Estimation")
+                           showscale = F, name = "Classify and Count")
   }
   if("estbias" %in% methods){
     p <- p %>% add_surface(z ~ dat$data.esbi, surfacecolor = color5,
                            cauto = F, cmax = 1, cmin = 0,
-                           showscale = F, name = "Estimated Bias: Biased")
+                           showscale = F, name = "Substracting Bias")
   }
   p <- p %>% layout(
     title = paste("RMSE with alpha = ", alpha, ", n = ", n ,sep = ""),
@@ -389,14 +389,14 @@ body <- dashboardBody(
               height = "20em"),
           box(checkboxGroupInput(inputId = "methods",
                              label = "Which methods are shown in the plot?",
-                             choiceNames = list("Naive Method",
-                                                "Estimated Bias Method",
-                                                "Validation Data",
-                                                "Inversed Contigency Matrix",
-                                                "Calibration Matrix"),
-                             choiceValues = list("naive",
+                             choiceNames = list("Baseline",
+                                                "Classify and Count",
+                                                "Substracting Bias",
+                                                "Misclassification Probabilities",
+                                                "Calibration Probabilities"),
+                             choiceValues = list("validation",
+                                                 "naive",
                                                  "estbias",
-                                                 "validation",
                                                  "probability",
                                                  "calibration"),
                              selected = "calibration"),
@@ -449,13 +449,13 @@ server <- function(input, output) {
             fill = T)
   })
   output$naiveEstimate <- renderInfoBox({
-    infoBox("Naive estimate of proportion class 1",
+    infoBox("Classify and Count",
             paste0(100 * round(sum(input$n01, input$n11)/sum(input$n01, input$n11, input$n00, input$n10), 5),
                    "%"),
             color = "yellow")
   })
   output$observedEstimate <- renderInfoBox({
-    infoBox("Observed estimate of proportion class 1 in validation set",
+    infoBox("Baseline Estimator",
             paste0(100 * round(sum(input$n10, input$n11)/sum(input$n01, input$n11, input$n00, input$n10), 5),
                    "%"),
             color = "green")
@@ -468,31 +468,31 @@ server <- function(input, output) {
             color = "red")
   })
   output$naiveMSE <- renderValueBox({
-    valueBox(subtitle = "RMSE with Naive Estimation",
+    valueBox(subtitle = "RMSE with Classify and Count",
             value = rmse.thr.naive(input$N, input$p00 , input$p11 , input$alpha) %>% signif(digits = 4),
             color = "yellow",
             icon = icon("laptop-code"))
   })
   output$estbiasMSE <- renderValueBox({
-    valueBox(subtitle = "RMSE with Estimated Bias Correction: Biased",
+    valueBox(subtitle = "RMSE with Substracting Bias",
              value = rmse.thr.esbi(input$n, input$p00 , input$p11 , input$alpha) %>% signif(digits = 4),
              color = "red",
              icon = icon("laptop-code"))
   })
   output$validationMSE <- renderValueBox({
-    valueBox(subtitle = "RMSE with Validation Data",
+    valueBox(subtitle = "RMSE with Baseline Estimator",
             value = rmse.thr.vali(input$n, input$alpha ) %>% signif(digits = 4),
             color = "green",
             icon = icon("laptop-code"))
   })
   output$probabilityMSE <- renderValueBox({
-    valueBox(subtitle = "RMSE with Inversed Contigency Matrix",
+    valueBox(subtitle = "RMSE with Misclassification Probabilities",
             value = rmse.thr.prob(input$n, input$p00 , input$p11 , input$alpha ) %>% signif(digits = 4),
             color = "light-blue",
             icon = icon("laptop-code"))
   })
   output$calibrationMSE <- renderValueBox({
-    valueBox(subtitle = "RMSE with Calibration Matrix",
+    valueBox(subtitle = "RMSE with Calibration Probabilities",
             value = rmse.thr.cali(input$n, input$p00 , input$p11 , input$alpha ) %>% signif(digits = 4),
             color = "purple",
             icon = icon("laptop-code"))
@@ -507,7 +507,7 @@ server <- function(input, output) {
                axis.text.y=element_blank(),
                axis.ticks.y=element_blank()) +
          xlab('Estimated alpha') +
-      geom_vline(aes(xintercept = input$alpha), lty = 2, lwd = 2, color = "black")
+         geom_vline(aes(xintercept = input$alpha), lty = 2, lwd = 2, color = "black")
     p
   })
   dat <- eventReactive(input$submit, {
@@ -529,27 +529,27 @@ server <- function(input, output) {
     if (!is.null(dat()$data.prob)){
       p <- p %>% add_surface(z = ~dat()$data.prob, surfacecolor = color1,
                              cauto = F, cmax = 1, cmin = 0,
-                             showscale = F, name = "Inversed Contigency Matrix")
+                             showscale = F, name = "Misclassification Probabilities")
     }
     if(!is.null(dat()$data.vali)){
       p <- p %>% add_surface(z = ~dat()$data.vali, surfacecolor = color2,
                              cauto = F, cmax = 1, cmin = 0,
-                             showscale = F, name = "Validation Data")
+                             showscale = F, name = "Baseline Estimator")
     }
     if(!is.null(dat()$data.cali)){
       p <- p %>% add_surface(z = ~dat()$data.cali, surfacecolor = color3,
                              cauto = F, cmax = 1, cmin = 0,
-                             showscale = F, name = "Calibration Matrix")
+                             showscale = F, name = "Calibration Probabilities")
     }
     if(!is.null(dat()$data.naiv)){
       p <- p %>% add_surface(z ~ dat()$data.naiv, surfacecolor = color4,
                              cauto = F, cmax = 1, cmin = 0,
-                             showscale = F, name = "Naive Estimation")
+                             showscale = F, name = "Classify and Count")
     }
     if (!is.null(dat()$data.esbi2)){
       p <- p %>% add_surface(z = ~dat()$data.esbi2, surfacecolor = color6,
                              cauto = F, cmax = 1, cmin = 0,
-                             showscale = F, name = "Estimated Bias")
+                             showscale = F, name = "Substracting Bias")
     }
     p <- p %>% layout(
       title = paste("RMSE with alpha = ", dat()$alpha, ", n = ", dat()$n ,sep = ""),
@@ -562,7 +562,7 @@ server <- function(input, output) {
     p
   })
   output$mini <- renderPlot({
-    meth <- c("naive", "estbias", "validation", "contingency", "calibration")
+    meth <- c("validation","naive", "estbias", "contingency", "calibration")
     fac <- meth[which(meth %in% dat()$methods)]
     vals <- abind(dat()[1:5], along = 3)
     min <- apply(vals, c(1,2), which.min)
