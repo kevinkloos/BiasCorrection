@@ -110,17 +110,20 @@ predictions.2classes <- function(runs, n, N, p00, p11, alpha1){
   est.esbi <- alphas.hat - (p11.hat - 1)*alphas.hat - (1 - p00.hat)*(1-alphas.hat)
 
 
-  dfr <- data.frame("A.Baseline" = alphas.v,
-                    "D.Misclassification.Probabilities" = est.prob,
-                    "E.Calibration.Probabilities"= est.cali,
-                    "C.Substracting.Bias" = est.esbi,
-                    "B.Classify.And.Count" = alphas.hat)
+  dfr <- data.frame("Baseline" = alphas.v,
+                    "Misclassification" = est.prob,
+                    "Calibration"= est.cali,
+                    "Substracting.Bias" = est.esbi,
+                    "Classify.and.Count" = alphas.hat)
   dfr <- pivot_longer(dfr,
-                      cols = c("A.Baseline", "D.Misclassification.Probabilities",
-                               "E.Calibration.Probabilities", "B.Classify.And.Count",
-                               "C.Substracting.Bias"),
-                      names_to = "Method",
+                      cols = c("Baseline", "Misclassification",
+                               "Calibration", "Classify.and.Count",
+                               "Substracting.Bias"),
+                      names_to = "Estimator",
                       values_to = "Value")
+  dfr$Estimator<- factor(dfr$Estimator, levels = c("Baseline", "Classify.and.Count", "Substracting.Bias",
+                                             "Misclassification", "Calibration"))
+
   return(dfr)
 }
 
@@ -231,28 +234,28 @@ data.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
 
   data.prob <- data.cali <- data.vali <- data.naiv <- data.esbi <- data.esbi2 <- NULL
 
-  if("probability" %in% methods){
+  if("Misclassification" %in% methods){
     data.prob <- mapply(rmse.thr.prob, n, p.grid[,1], p.grid[,2], alpha)
     data.prob <- matrix(data.prob, nrow = length(p00), byrow = T)
   }
-  if("calibration" %in% methods){
+  if("Calibration" %in% methods){
     data.cali <- mapply(rmse.thr.cali, n, p.grid[,1], p.grid[,2], alpha)
     data.cali <- matrix(data.cali, nrow = length(p00), byrow = T)
   }
-  if("validation" %in% methods){
+  if("Baseline" %in% methods){
     data.vali <- matrix(sqrt(alpha*(1-alpha)/n), nrow = length(p00), ncol = length(p11))
   }
-  if("naive" %in% methods){
+  if("Classify and Count" %in% methods){
     data.naiv <- mapply(rmse.thr.naive, N, p.grid[,1], p.grid[,2], alpha)
     data.naiv <- matrix(data.naiv, nrow = length(p00), byrow = T)
   }
-  if("estbias" %in% methods){
+  if("Substracting Bias" %in% methods){
     data.esbi <- mapply(rmse.thr.esbi, n, p.grid[,1], p.grid[,2], alpha)
     data.esbi <- matrix(data.esbi, nrow = length(p00), byrow = T)
   }
-  return(list(data.naiv = data.naiv,
+  return(list(data.vali = data.vali,
+              data.naiv = data.naiv,
               data.esbi = data.esbi,
-              data.vali = data.vali,
               data.prob = data.prob,
               data.cali = data.cali,
               n = n,
@@ -281,27 +284,27 @@ dash.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
 
   # create plot
   p <- plot_ly(x = ~p00, y = ~p11, showscale = F)
-  if ("probability" %in% methods){
+  if ("Misclassification" %in% methods){
     p <- p %>% add_surface(z = ~dat$data.prob, surfacecolor = color1,
                            cauto = F, cmax = 1, cmin = 0,
-                           showscale = F, name = "Misclassification Probabilities")
+                           showscale = F, name = "Misclassification")
   }
-  if("validation" %in% methods){
+  if("Baseline" %in% methods){
     p <- p %>% add_surface(z = ~dat$data.vali, surfacecolor = color2,
                            cauto = F, cmax = 1, cmin = 0,
                            showscale = F, name = "Baseline Estimator")
   }
-  if("calibration" %in% methods){
+  if("Calibration" %in% methods){
     p <- p %>% add_surface(z = ~dat$data.cali, surfacecolor = color3,
                            cauto = F, cmax = 1, cmin = 0,
-                           showscale = F, name = "Calibration Probabilities")
+                           showscale = F, name = "Calibration")
   }
-  if("naive" %in% methods){
+  if("Classify and Count" %in% methods){
     p <- p %>% add_surface(z ~ dat$data.naiv, surfacecolor = color4,
                            cauto = F, cmax = 1, cmin = 0,
                            showscale = F, name = "Classify and Count")
   }
-  if("estbias" %in% methods){
+  if("Substracting Bias" %in% methods){
     p <- p %>% add_surface(z ~ dat$data.esbi, surfacecolor = color5,
                            cauto = F, cmax = 1, cmin = 0,
                            showscale = F, name = "Substracting Bias")
@@ -339,7 +342,7 @@ body <- dashboardBody(
               width = 4,
               height = "15em"),
           box(numericInput(inputId = "n",
-                           label = "Sample size of the validation set (n):",
+                           label = "Sample size of the audit set (n):",
                            value = 300),
               numericInput(inputId = "N",
                            label = "Population size (N):",
@@ -377,7 +380,7 @@ body <- dashboardBody(
               width = 4,
               height = "20em"),
           box(numericInput(inputId = "n2",
-                           label = "Sample size of the validation set (n):",
+                           label = "Sample size of the test set (n):",
                            value = 300),
               sliderInput(inputId = "steps",
                           label = "Steps in the graph. Higher number -> more accuracy, but longer computation time:",
@@ -388,18 +391,18 @@ body <- dashboardBody(
               width = 4,
               height = "20em"),
           box(checkboxGroupInput(inputId = "methods",
-                             label = "Which methods are shown in the plot?",
+                             label = "Which estimators are shown in the plot?",
                              choiceNames = list("Baseline",
                                                 "Classify and Count",
                                                 "Substracting Bias",
-                                                "Misclassification Probabilities",
-                                                "Calibration Probabilities"),
-                             choiceValues = list("validation",
-                                                 "naive",
-                                                 "estbias",
-                                                 "probability",
-                                                 "calibration"),
-                             selected = "calibration"),
+                                                "Misclassification",
+                                                "Calibration"),
+                             choiceValues = list("Baseline",
+                                                 "Classify and Count",
+                                                 "Substracting Bias",
+                                                 "Misclassification",
+                                                 "Calibration"),
+                             selected = "Calibration"),
               actionButton("submit", "Update Plots"),
               width = 4,
               height = "20em"),
@@ -421,52 +424,6 @@ ui <- dashboardPage(
 
 
 server <- function(input, output) {
-  output$sensitivityBox <- renderInfoBox({
-    infoBox("Accuracy in predicting Class 0 (95% CI)",
-            paste0(round(100 * input$n00 / (input$n00 + input$n01),3),
-                   "% (",
-                   100 * round(prop.CI(input$n00 / (input$n00 + input$n01), 0.05, (input$n00 + input$n01))[1],5),
-                   "% - ",
-                   100 * round(prop.CI(input$n00 / (input$n00 + input$n01), 0.05, (input$n00 + input$n01))[2],5),
-                   "%)"),
-            icon = icon("dice", lib = "font-awesome"),
-            color = "blue",
-            width = 3,
-            fill = T)
-  })
-  output$specificityBox <- renderInfoBox({
-    #Hoe ver afgerond?
-    infoBox("Accuracy in predicting Class 1 (95% CI)",
-            paste0(round(100 * input$n11 / (input$n10 + input$n11),3),
-                   "% (",
-                   100 * round(prop.CI(input$n11 / (input$n10 + input$n11), 0.05, (input$n10 + input$n11))[1],5),
-                   "% - ",
-                   100 * round(prop.CI(input$n11 / (input$n10 + input$n11), 0.05, (input$n10 + input$n11))[2],5),
-                   "%)"),
-            icon = icon("dice", lib = "font-awesome"),
-            color = "blue",
-            width = 3,
-            fill = T)
-  })
-  output$naiveEstimate <- renderInfoBox({
-    infoBox("Classify and Count",
-            paste0(100 * round(sum(input$n01, input$n11)/sum(input$n01, input$n11, input$n00, input$n10), 5),
-                   "%"),
-            color = "yellow")
-  })
-  output$observedEstimate <- renderInfoBox({
-    infoBox("Baseline Estimator",
-            paste0(100 * round(sum(input$n10, input$n11)/sum(input$n01, input$n11, input$n00, input$n10), 5),
-                   "%"),
-            color = "green")
-  })
-  output$correctedEstimate <- renderInfoBox({
-    infoBox("Corrected estimate of proportion class 1",
-            paste0(100 * round(estimate.cali(input$n00, input$n10, input$n01,
-                                             input$n11, input$alpha.hat.star ),5),
-                   "%"),
-            color = "red")
-  })
   output$naiveMSE <- renderValueBox({
     valueBox(subtitle = "RMSE with Classify and Count",
             value = rmse.thr.naive(input$N, input$p00 , input$p11 , input$alpha) %>% signif(digits = 4),
@@ -486,13 +443,13 @@ server <- function(input, output) {
             icon = icon("laptop-code"))
   })
   output$probabilityMSE <- renderValueBox({
-    valueBox(subtitle = "RMSE with Misclassification Probabilities",
+    valueBox(subtitle = "RMSE with Misclassification Estimator",
             value = rmse.thr.prob(input$n, input$p00 , input$p11 , input$alpha ) %>% signif(digits = 4),
             color = "light-blue",
             icon = icon("laptop-code"))
   })
   output$calibrationMSE <- renderValueBox({
-    valueBox(subtitle = "RMSE with Calibration Probabilities",
+    valueBox(subtitle = "RMSE with Calibration Estimator",
             value = rmse.thr.cali(input$n, input$p00 , input$p11 , input$alpha ) %>% signif(digits = 4),
             color = "purple",
             icon = icon("laptop-code"))
@@ -501,13 +458,17 @@ server <- function(input, output) {
     predictions.2classes(input$runs, input$n, input$N, input$p00, input$p11, input$alpha)})
   output$boxplot <- renderPlot({
     p <- ggplot(boxdat()) +
-         geom_boxplot(aes(x = Value , y = Method, fill = Method)) +
-         scale_fill_manual(values = c("purple", "lightblue", "green", "red", "yellow")) +
+         geom_boxplot(aes(x = Value , y = Estimator, fill = Estimator)) +
+         scale_fill_manual(values = c("green", "yellow", "red", "lightblue", "purple")) +
          theme(axis.title.y=element_blank(),
                axis.text.y=element_blank(),
                axis.ticks.y=element_blank()) +
          xlab('Estimated alpha') +
-         geom_vline(aes(xintercept = input$alpha), lty = 2, lwd = 2, color = "black")
+         geom_vline(aes(xintercept = input$alpha), lty = 2, lwd = 2, color = "black") +
+         theme(legend.title = element_text("Estimator", size = 20),
+               legend.text= element_text(size=16),
+               axis.text.x = element_text(size = 12),
+               axis.title.x = element_text(size = 14))
     p
   })
   dat <- eventReactive(input$submit, {
@@ -529,7 +490,7 @@ server <- function(input, output) {
     if (!is.null(dat()$data.prob)){
       p <- p %>% add_surface(z = ~dat()$data.prob, surfacecolor = color1,
                              cauto = F, cmax = 1, cmin = 0,
-                             showscale = F, name = "Misclassification Probabilities")
+                             showscale = F, name = "Misclassification")
     }
     if(!is.null(dat()$data.vali)){
       p <- p %>% add_surface(z = ~dat()$data.vali, surfacecolor = color2,
@@ -539,7 +500,7 @@ server <- function(input, output) {
     if(!is.null(dat()$data.cali)){
       p <- p %>% add_surface(z = ~dat()$data.cali, surfacecolor = color3,
                              cauto = F, cmax = 1, cmin = 0,
-                             showscale = F, name = "Calibration Probabilities")
+                             showscale = F, name = "Calibration")
     }
     if(!is.null(dat()$data.naiv)){
       p <- p %>% add_surface(z ~ dat()$data.naiv, surfacecolor = color4,
@@ -562,7 +523,7 @@ server <- function(input, output) {
     p
   })
   output$mini <- renderPlot({
-    meth <- c("validation","naive", "estbias", "contingency", "calibration")
+    meth <- c("Baseline","Classify and Count", "Substracting Bias", "Misclassification", "Calibration")
     fac <- meth[which(meth %in% dat()$methods)]
     vals <- abind(dat()[1:5], along = 3)
     min <- apply(vals, c(1,2), which.min)
@@ -570,11 +531,15 @@ server <- function(input, output) {
     p11.seq <- seq(dat()$p11[1],dat()$p11[2], length.out = dat()$steps)
     dfr <- data.frame(p00 = rep(p00.seq, each = length(p11.seq)),
                       p11 = rep(p11.seq, times = length(p00.seq)),
-                      minimum.rmse = factor(min, labels = fac, levels = 1:length(fac)))
-    ggplot(dfr, aes(x = p00, y = p11, fill = minimum.rmse)) +
+                      Estimator = factor(min, labels = fac, levels = 1:length(fac)))
+    ggplot(dfr, aes(x = p00, y = p11, fill = Estimator)) +
       geom_raster() +
-      ggtitle(paste("Method with lowest RMSE for alpha =",
-                    dat()$alpha, "and n =", dat()$n, sep = " "))
+      ggtitle(paste("Estimator with lowest RMSE for alpha =",
+                    dat()$alpha, "and n =", dat()$n, sep = " ")) +
+      theme(panel.background = element_blank(),
+            axis.line = element_line(colour = "black"),
+            legend.title = element_text(size = 20),
+            legend.text=element_text(size=16))
   })
 }
 
