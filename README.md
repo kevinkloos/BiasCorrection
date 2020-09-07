@@ -36,7 +36,7 @@ Page that shows the RMSE and a boxplot of estimates of the five estimators. The 
   * Boxplot that shows the distribution of the estimates
   
 ### Descriptive Curve
-Page that shows an interactive curve of the RMSE and a heat map which selected method has the lowest RMSE. 
+Page that shows an interactive curve of the RMSE and a heat map which selected method has the lowest RMSE. Updating the input values to the plots can be done by pressing **Update Plots**.
 
 #### Input
   * Range of Sensitivity 
