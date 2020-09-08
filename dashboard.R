@@ -2,6 +2,7 @@
 
 #################################### Libraries ##########################################
 library(abind)
+library(ggpubr)
 library(shiny)
 library(shinydashboard)
 library(plotly)
@@ -113,16 +114,18 @@ predictions.2classes <- function(runs, n, N, p00, p11, alpha1){
   dfr <- data.frame("Baseline" = alphas.v,
                     "Misclassification" = est.prob,
                     "Calibration"= est.cali,
-                    "Substracting.Bias" = est.esbi,
-                    "Classify.and.Count" = alphas.hat)
+                    "Subtracted.bias" = est.esbi,
+                    "Classify.and.count" = alphas.hat)
   dfr <- pivot_longer(dfr,
                       cols = c("Baseline", "Misclassification",
-                               "Calibration", "Classify.and.Count",
-                               "Substracting.Bias"),
+                               "Calibration", "Classify.and.count",
+                               "Subtracted.bias"),
                       names_to = "Estimator",
                       values_to = "Value")
-  dfr$Estimator<- factor(dfr$Estimator, levels = c("Baseline", "Classify.and.Count", "Substracting.Bias",
-                                             "Misclassification", "Calibration"))
+  dfr$Estimator <- revalue(dfr$Estimator, c("Classify.and.count"="Classify-and-count", 
+                                            "Subtracted.bias"="Subtracted-bias"))
+  dfr$Estimator<- ordered(dfr$Estimator, levels = c("Calibration", "Misclassification","Subtracted-bias",
+                                                    "Classify-and-count", "Baseline"))
 
   return(dfr)
 }
@@ -245,11 +248,11 @@ data.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
   if("Baseline" %in% methods){
     data.vali <- matrix(sqrt(alpha*(1-alpha)/n), nrow = length(p00), ncol = length(p11))
   }
-  if("Classify and Count" %in% methods){
+  if("Classify-and-count" %in% methods){
     data.naiv <- mapply(rmse.thr.naive, N, p.grid[,1], p.grid[,2], alpha)
     data.naiv <- matrix(data.naiv, nrow = length(p00), byrow = T)
   }
-  if("Substracting Bias" %in% methods){
+  if("Subtracted-bias" %in% methods){
     data.esbi <- mapply(rmse.thr.esbi, n, p.grid[,1], p.grid[,2], alpha)
     data.esbi <- matrix(data.esbi, nrow = length(p00), byrow = T)
   }
@@ -302,12 +305,12 @@ dash.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
   if("Classify and Count" %in% methods){
     p <- p %>% add_surface(z ~ dat$data.naiv, surfacecolor = color4,
                            cauto = F, cmax = 1, cmin = 0,
-                           showscale = F, name = "Classify and Count")
+                           showscale = F, name = "Classify-and-count")
   }
   if("Substracting Bias" %in% methods){
     p <- p %>% add_surface(z ~ dat$data.esbi, surfacecolor = color5,
                            cauto = F, cmax = 1, cmin = 0,
-                           showscale = F, name = "Substracting Bias")
+                           showscale = F, name = "Subtracted-bias")
   }
   p <- p %>% layout(
     title = paste("RMSE with alpha = ", alpha, ", n = ", n ,sep = ""),
@@ -321,7 +324,7 @@ dash.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
 }
 
 ################################ Dashboard #############################################
-header <- dashboardHeader(title = "Bias Correction Dashboard")
+header <- dashboardHeader(title = "Correction Methods")
 sidebar <- dashboardSidebar(
   sidebarMenu(
     menuItem("Descriptive One Point", tabName = "descriptives1p", icon = icon("dashboard")),
@@ -342,10 +345,10 @@ body <- dashboardBody(
               width = 4,
               height = "15em"),
           box(numericInput(inputId = "n",
-                           label = "Sample size of the audit set (n):",
+                           label = "Sample size of the test set (n):",
                            value = 300),
               numericInput(inputId = "N",
-                           label = "Population size (N):",
+                           label = "Size of unlabeled data (N):",
                            value = 300000),
               width = 4,
               height = "15em"),
@@ -393,8 +396,8 @@ body <- dashboardBody(
           box(checkboxGroupInput(inputId = "methods",
                              label = "Which estimators are shown in the plot?",
                              choiceNames = list("Baseline",
-                                                "Classify and Count",
-                                                "Substracting Bias",
+                                                "Classify-and-count",
+                                                "Subtracted-bias",
                                                 "Misclassification",
                                                 "Calibration"),
                              choiceValues = list("Baseline",
@@ -425,13 +428,13 @@ ui <- dashboardPage(
 
 server <- function(input, output) {
   output$naiveMSE <- renderValueBox({
-    valueBox(subtitle = "RMSE with Classify and Count",
+    valueBox(subtitle = "RMSE with Classify-and-count Estimator",
             value = rmse.thr.naive(input$N, input$p00 , input$p11 , input$alpha) %>% signif(digits = 4),
             color = "yellow",
             icon = icon("laptop-code"))
   })
   output$estbiasMSE <- renderValueBox({
-    valueBox(subtitle = "RMSE with Substracting Bias",
+    valueBox(subtitle = "RMSE with Subtracted-bias Estimator",
              value = rmse.thr.esbi(input$n, input$p00 , input$p11 , input$alpha) %>% signif(digits = 4),
              color = "red",
              icon = icon("laptop-code"))
@@ -457,18 +460,31 @@ server <- function(input, output) {
   boxdat <- eventReactive(input$box, {
     predictions.2classes(input$runs, input$n, input$N, input$p00, input$p11, input$alpha)})
   output$boxplot <- renderPlot({
-    p <- ggplot(boxdat()) +
-         geom_boxplot(aes(x = Value , y = Estimator, fill = Estimator)) +
-         scale_fill_manual(values = c("green", "yellow", "red", "lightblue", "purple")) +
-         theme(axis.title.y=element_blank(),
-               axis.text.y=element_blank(),
-               axis.ticks.y=element_blank()) +
-         xlab('Estimated alpha') +
-         geom_vline(aes(xintercept = input$alpha), lty = 2, lwd = 2, color = "black") +
-         theme(legend.title = element_text("Estimator", size = 20),
-               legend.text= element_text(size=16),
-               axis.text.x = element_text(size = 12),
-               axis.title.x = element_text(size = 14))
+    #p <- ggplot(boxdat()) +
+    #     geom_boxplot(aes(x = Value , y = Estimator, fill = Estimator)) +
+    #     scale_fill_manual(values = c("green", "yellow", "red", "lightblue", "purple")) +
+    #     theme(axis.title.y=element_blank(),
+    #           axis.text.y=element_blank(),
+    #           axis.ticks.y=element_blank()) +
+    #     xlab('Estimated alpha') +
+    #     geom_vline(aes(xintercept = input$alpha), lty = 2, lwd = 2, color = "black") +
+    #     theme(legend.title = element_text("Estimator", size = 20),
+    #           legend.text= element_text(size=16),
+    #           axis.text.x = element_text(size = 12),
+    #           axis.title.x = element_text(size = 14))
+    
+    p <- ggboxplot(boxdat(), x = "Estimator", y = "Value",
+                   fill = "Estimator", palette = c("purple", "lightblue", "red", "yellow", "green"),
+                   bxp.errorbar = T, merge = T, legend = "none") + 
+         geom_hline(aes(yintercept = input$alpha), lty = 2, lwd = 2, color = "black") +
+         grids(linetype = "dashed") +
+         font("legend.title", size = 22) +
+         font("legend.text", size = 20) +
+         font("axis.text", size = 18) +
+         font("xlab", size = 18) +
+         font("ylab", size = 0) +
+         coord_flip() +
+         ylab("alpha")
     p
   })
   dat <- eventReactive(input$submit, {
@@ -505,25 +521,25 @@ server <- function(input, output) {
     if(!is.null(dat()$data.naiv)){
       p <- p %>% add_surface(z ~ dat()$data.naiv, surfacecolor = color4,
                              cauto = F, cmax = 1, cmin = 0,
-                             showscale = F, name = "Classify and Count")
+                             showscale = F, name = "Classify-and-count")
     }
     if (!is.null(dat()$data.esbi2)){
       p <- p %>% add_surface(z = ~dat()$data.esbi2, surfacecolor = color6,
                              cauto = F, cmax = 1, cmin = 0,
-                             showscale = F, name = "Substracting Bias")
+                             showscale = F, name = "Subtracted-bias")
     }
     p <- p %>% layout(
       title = paste("RMSE with alpha = ", dat()$alpha, ", n = ", dat()$n ,sep = ""),
       scene = list(
-        xaxis = list(title = "p00", showgrid = F),
-        yaxis = list(title = "p11", showgrid = F),
-        zaxis = list(title = "RMSE", showgrid = F)
+        xaxis = list(title = "p00"),
+        yaxis = list(title = "p11"),
+        zaxis = list(title = "RMSE")
       ))
 
     p
   })
   output$mini <- renderPlot({
-    meth <- c("Baseline","Classify and Count", "Substracting Bias", "Misclassification", "Calibration")
+    meth <- c("Baseline","Classify-and-count", "Subtracted-bias", "Misclassification", "Calibration")
     fac <- meth[which(meth %in% dat()$methods)]
     vals <- abind(dat()[1:5], along = 3)
     min <- apply(vals, c(1,2), which.min)
@@ -538,8 +554,8 @@ server <- function(input, output) {
                     dat()$alpha, "and n =", dat()$n, sep = " ")) +
       theme(panel.background = element_blank(),
             axis.line = element_line(colour = "black"),
-            legend.title = element_text(size = 20),
-            legend.text=element_text(size=16))
+            legend.title = element_text(size = 24),
+            legend.text=element_text(size = 20))
   })
 }
 
