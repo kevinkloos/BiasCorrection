@@ -10,6 +10,7 @@ In order to use the dashboard, you need to install the following software packag
 
 Within R, you will need the following packages:
   * [abind](https://www.rdocumentation.org/packages/abind)
+  * [ggpubr](https://www.rdocumentation.org/packages/ggpubr)
   * [plotly](https://www.rdocumentation.org/packages/plotly)
   * [shiny](https://www.rdocumentation.org/packages/shiny)
   * [shinydashboard](https://www.rdocumentation.org/packages/shinydashboard)
