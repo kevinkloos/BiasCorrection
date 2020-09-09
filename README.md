@@ -12,6 +12,7 @@ Within R, you will need the following packages:
   * [abind](https://www.rdocumentation.org/packages/abind)
   * [ggpubr](https://www.rdocumentation.org/packages/ggpubr)
   * [plotly](https://www.rdocumentation.org/packages/plotly)
+  * [plyr](https://www.rdocumentation.org/packages/plyr)
   * [shiny](https://www.rdocumentation.org/packages/shiny)
   * [shinydashboard](https://www.rdocumentation.org/packages/shinydashboard)
   * [tidyverse](https://www.rdocumentation.org/packages/tidyverse)
