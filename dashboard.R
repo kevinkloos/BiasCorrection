@@ -1,12 +1,13 @@
 ## app.R ##
 
 #################################### Libraries ##########################################
-library(abind)
-library(ggpubr)
-library(shiny)
-library(shinydashboard)
-library(plotly)
-library(tidyverse)
+if(!require("abind")){install.packages("abind");library("abind")} 
+if(!require("ggpubr")){install.packages("ggpubr");library("ggpubr")} 
+if(!require("shiny")){install.packages("shiny");library("shiny")} 
+if(!require("shinydashboard")){install.packages("shinydashboard");library("shinydashboard")} 
+if(!require("plotly")){install.packages("plotly");library("plotly")} 
+if(!require("plyr")){install.packages("plyr");library("plyr")} 
+if(!require("tidyverse")){install.packages("tidyverse");library("tidyverse")} 
 
 #################################### Functions ##########################################
 
