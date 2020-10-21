@@ -18,7 +18,7 @@ Within R, you will need the following packages:
   * [shinydashboard](https://www.rdocumentation.org/packages/shinydashboard)
   * [tidyverse](https://www.rdocumentation.org/packages/tidyverse)
   
-After installing the software, the app can be opened by pressing **Run App** at the top right of the R Script.
+After installing the software, the app can be opened by pressing **Run App** at the top right of the R Script or running the whole script.
   
 ## Usage 
 The dashboard contains two pages: *Descriptive One Point* and *Descriptive Curve*. At the page *Descriptive One Point*, you can find the RMSE and a boxplot of the data points of all estimators that are introduced in the paper. At the page *Descriptive Curve*, you can find curve of the RMSE and a overview which estimators performs the best given the input.
