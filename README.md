@@ -1,4 +1,4 @@
-# Comparing Correction Methods for Misclassification Bias: Dashboard
+# Comparing Correction Methods to Reduce Misclassification Bias: Dashboard
 
 ## Description
 This GitHub page contains additional information for the paper *Comparing Correction Methods for Misclassification Bias*, written for the [BNAIC/BENELEARN Conference 2020](https://bnaic.liacs.leidenuniv.nl/). At this page, you can find the paper (including the appendix with mathematical derivations and proofs) and a interactive dashboard. This dashboard makes it possible to apply the theory presented in the paper in an accessible way.
