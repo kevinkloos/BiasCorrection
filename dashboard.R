@@ -30,7 +30,7 @@ estimate.cali <- function(n00,n10,n01,n11,a.hat.star){
   return(est[2])
 }
 
-rmse.thr.prob <- function(n, p00, p11, a1){
+rmse.thr.prob <- function(n, p00, p11, a1){ 
   val1 <- (1-a1)*p00*(1-p00)*(1+a1/(n*(1-a1)))
   val2 <- a1*p11*(1-p11)*(1 + (1-a1)/(n*a1))
   val3 <- n*(p00+p11-1)^2
@@ -277,7 +277,8 @@ dash.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
   p11 <- seq(p11_left, p11_right, length.out = steps)
   p.grid <- expand.grid(p00, p11)
   
-  dat <- data.rmseplot(p00_left, p00_right, p11_left, p11_right, n, N, alpha, methods, steps)
+  dat <- data.rmseplot(p00_left, p00_right, p11_left, 
+                       p11_right, n, N, alpha, methods, steps)
   
   color1 <- rep(0, length(p00) * length(p11))
   dim(color1) <- dim(dat$data.prob)
@@ -288,6 +289,7 @@ dash.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
   
   # create plot
   p <- plot_ly(x = ~p00, y = ~p11, showscale = F)
+  
   if ("Misclassification" %in% methods){
     p <- p %>% add_surface(z = ~dat$data.prob, surfacecolor = color1,
                            cauto = F, cmax = 1, cmin = 0,
@@ -304,12 +306,12 @@ dash.rmseplot <- function(p00_left, p00_right, p11_left, p11_right, n, N, alpha,
                            showscale = F, name = "Calibration")
   }
   if("Classify-and-count" %in% methods){
-    p <- p %>% add_surface(z ~ dat$data.naiv, surfacecolor = color4,
+    p <- p %>% add_surface(z = ~dat$data.naiv, surfacecolor = color4,
                            cauto = F, cmax = 1, cmin = 0,
                            showscale = F, name = "Classify-and-count")
   }
-  if("Substracting-bias" %in% methods){
-    p <- p %>% add_surface(z ~ dat$data.esbi, surfacecolor = color5,
+  if("Subtracted-bias" %in% methods){
+    p <- p %>% add_surface(z = ~dat$data.esbi, surfacecolor = color5,
                            cauto = F, cmax = 1, cmin = 0,
                            showscale = F, name = "Subtracted-bias")
   }
@@ -524,8 +526,8 @@ server <- function(input, output) {
                              cauto = F, cmax = 1, cmin = 0,
                              showscale = F, name = "Classify-and-count")
     }
-    if (!is.null(dat()$data.esbi2)){
-      p <- p %>% add_surface(z = ~dat()$data.esbi2, surfacecolor = color6,
+    if (!is.null(dat()$data.esbi)){
+      p <- p %>% add_surface(z = ~dat()$data.esbi, surfacecolor = color5,
                              cauto = F, cmax = 1, cmin = 0,
                              showscale = F, name = "Subtracted-bias")
     }
@@ -557,7 +559,10 @@ server <- function(input, output) {
       theme(panel.background = element_blank(),
             axis.line = element_line(colour = "black"),
             legend.title = element_text(size = 24),
-            legend.text=element_text(size = 20))
+            legend.text=element_text(size = 20),
+            axis.text = element_text(size = 20),
+            axis.title = element_text(size = 20),
+            title = element_text(size = 24))
   })
 }
 
